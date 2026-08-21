@@ -1,34 +1,25 @@
 /* =====================================================
    HARSHITA TOUR & TRAVELS
    PREMIUM BOOKING SYSTEM
-   SUPABASE CONNECTED VERSION
+   DIRECT SUPABASE API
    ===================================================== */
 
 "use strict";
 
 
-/* =====================================================
-   SUPABASE CONFIGURATION
-   ===================================================== */
+/* ================= SUPABASE ================= */
 
 const SUPABASE_URL =
   "https://eqllcoqqoahimiwhtaxe.supabase.co";
 
-const SUPABASE_FUNCTION =
-  `${SUPABASE_URL}/functions/v1/create-booking`;
-
-/*
-   यह आपकी PUBLIC anon key है।
-   Secret / service_role key यहाँ कभी नहीं डालनी है।
-*/
-
-const SUPABASE_PUBLIC_KEY =
+const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxbGxjb3Fxb2FoaW1pd2h0YXhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyODYxOTAsImV4cCI6MjEwMjg2MjE5MH0.IJTlxQWzX_rmXRgS66vvphWNMzTtr-p5NuXEyEcIf7U";
 
+const BOOKINGS_API =
+  `${SUPABASE_URL}/rest/v1/Bookings`;
 
-/* =====================================================
-   MOBILE MENU
-   ===================================================== */
+
+/* ================= MOBILE MENU ================= */
 
 function toggleMenu() {
 
@@ -41,9 +32,7 @@ function toggleMenu() {
 }
 
 
-/* =====================================================
-   SELECT JOURNEY
-   ===================================================== */
+/* ================= SELECT JOURNEY ================= */
 
 function selectJourney(journeyName) {
 
@@ -58,53 +47,41 @@ function selectJourney(journeyName) {
   }
 
   if (booking) {
-
     booking.scrollIntoView({
       behavior: "smooth"
     });
-
   }
 }
 
 
-/* =====================================================
-   BOOKING ID
-   ===================================================== */
+/* ================= BOOKING ID ================= */
 
 function generateBookingId() {
 
   const year =
     new Date().getFullYear();
 
-  const randomNumber =
+  const random =
     Math.floor(
       1000 + Math.random() * 9000
     );
 
-  return `HTT-${year}-${randomNumber}`;
+  return `HTT-${year}-${random}`;
 }
 
 
-/* =====================================================
-   CALCULATE REMAINING
-   ===================================================== */
+/* ================= REMAINING AMOUNT ================= */
 
 function calculateRemaining() {
 
   const totalInput =
-    document.getElementById(
-      "totalAmount"
-    );
+    document.getElementById("totalAmount");
 
   const advanceInput =
-    document.getElementById(
-      "advanceAmount"
-    );
+    document.getElementById("advanceAmount");
 
   const remainingInput =
-    document.getElementById(
-      "remainingAmount"
-    );
+    document.getElementById("remainingAmount");
 
   if (
     !totalInput ||
@@ -120,21 +97,15 @@ function calculateRemaining() {
   const advance =
     Number(advanceInput.value) || 0;
 
-  let remaining =
-    total - advance;
-
-  if (remaining < 0) {
-    remaining = 0;
-  }
+  const remaining =
+    Math.max(total - advance, 0);
 
   remainingInput.value =
     remaining;
 }
 
 
-/* =====================================================
-   SHOW MESSAGE
-   ===================================================== */
+/* ================= MESSAGE ================= */
 
 function showBookingMessage(
   message,
@@ -159,104 +130,100 @@ function showBookingMessage(
 
 
 /* =====================================================
-   CREATE BOOKING — SUPABASE
+   SAVE BOOKING DIRECTLY TO SUPABASE
    ===================================================== */
 
-async function sendBookingToSupabase(
-  bookingData
+async function saveBookingToSupabase(
+  booking
 ) {
 
   const response =
     await fetch(
-      SUPABASE_FUNCTION,
+      BOOKINGS_API,
       {
         method: "POST",
 
         headers: {
 
+          "apikey":
+            SUPABASE_KEY,
+
+          "Authorization":
+            `Bearer ${SUPABASE_KEY}`,
+
           "Content-Type":
             "application/json",
 
-          "apikey":
-            SUPABASE_PUBLIC_KEY,
-
-          "Authorization":
-            `Bearer ${SUPABASE_PUBLIC_KEY}`
+          "Prefer":
+            "return=representation"
         },
 
         body:
           JSON.stringify({
 
-            name:
-              bookingData.customerName,
+            "Booking_id":
+              booking.bookingId,
 
-            mobile:
-              bookingData.mobile,
+            "Joirney_name":
+              booking.journey,
 
-            journey:
-              bookingData.journey,
+            "Journey_date":
+              booking.journeyDate || null,
 
-            journey_date:
-              bookingData.journeyDate,
+            "Passenger":
+              booking.passengers,
 
-            passengers:
-              bookingData.passengers,
+            "Seat number":
+              booking.seatNumber || null,
 
-            pickup_point:
-              bookingData.pickupPoint,
+            "Pickup_point":
+              booking.pickupPoint,
 
-            vehicle:
-              bookingData.vehicle,
+            "Vehicle":
+              booking.vehicle,
 
-            total_amount:
-              bookingData.totalAmount,
+            "Total_ammount":
+              booking.totalAmount,
 
-            advance_amount:
-              bookingData.advanceAmount
+            "Advance_ammount":
+              booking.advanceAmount,
+
+            "Remaining_ammount":
+              booking.remainingAmount,
+
+            "Satatus":
+              "Pending"
 
           })
       }
     );
 
 
+  const text =
+    await response.text();
+
   let data = null;
 
   try {
-
-    data =
-      await response.json();
-
-  } catch (error) {
-
+    data = JSON.parse(text);
+  } catch {
     data = null;
-
   }
 
 
   if (!response.ok) {
 
     console.error(
-      "Supabase Function Error:",
-      data
+      "SUPABASE ERROR:",
+      data || text
     );
 
     throw new Error(
       data?.message ||
-      "Booking database में save नहीं हो सकी।"
+      data?.hint ||
+      data?.details ||
+      "Booking database में save नहीं हुई।"
     );
-  }
-
-
-  if (
-    !data ||
-    data.success !== true
-  ) {
-
-    throw new Error(
-      data?.message ||
-      "Booking create नहीं हुई।"
-    );
-
   }
 
 
@@ -265,13 +232,12 @@ async function sendBookingToSupabase(
 
 
 /* =====================================================
-   BOOKING SUBMIT
+   SUBMIT BOOKING
    ===================================================== */
 
 async function submitBooking(event) {
 
   event.preventDefault();
-
 
   const form =
     document.getElementById(
@@ -283,79 +249,66 @@ async function submitBooking(event) {
   }
 
 
-  /* ================= CUSTOMER ================= */
+  /* ================= FORM DATA ================= */
 
   const name =
     document
-      .getElementById(
-        "customerName"
-      )
+      .getElementById("customerName")
       ?.value
       .trim() || "";
 
 
   const mobile =
     document
-      .getElementById(
-        "customerMobile"
-      )
+      .getElementById("customerMobile")
       ?.value
       .trim() || "";
 
 
-  /* ================= JOURNEY ================= */
-
   const journey =
     document
-      .getElementById(
-        "journeyName"
-      )
+      .getElementById("journeyName")
       ?.value || "";
 
 
   const date =
     document
-      .getElementById(
-        "journeyDate"
-      )
+      .getElementById("journeyDate")
       ?.value || "";
 
 
   const passengers =
     Number(
       document
-        .getElementById(
-          "passengers"
-        )
+        .getElementById("passengers")
         ?.value
     ) || 1;
 
 
+  const seatNumber =
+    document
+      .getElementById("seatNumber")
+      ?.value
+      .trim() || "";
+
+
   const pickup =
     document
-      .getElementById(
-        "pickupPoint"
-      )
+      .getElementById("pickupPoint")
       ?.value
       .trim() || "";
 
 
   const vehicle =
     document
-      .getElementById(
-        "vehicle"
-      )
+      .getElementById("vehicle")
       ?.value || "";
 
-
-  /* ================= PAYMENT ================= */
 
   const total =
     Number(
       document
-        .getElementById(
-          "totalAmount"
-        )
+        .getElementById("totalAmount")
         ?.value
     ) || 0;
 
@@ -363,9 +316,7 @@ async function submitBooking(event) {
   const advance =
     Number(
       document
-        .getElementById(
-          "advanceAmount"
-        )
+        .getElementById("advanceAmount")
         ?.value
     ) || 0;
 
@@ -377,9 +328,7 @@ async function submitBooking(event) {
     );
 
 
-  /* =================================================
-     VALIDATION
-     ================================================= */
+  /* ================= VALIDATION ================= */
 
   if (!name) {
 
@@ -429,18 +378,12 @@ async function submitBooking(event) {
   }
 
 
-  /* =================================================
-     TEMP BOOKING OBJECT
-     ================================================= */
+  /* ================= BOOKING OBJECT ================= */
 
-  const temporaryBookingId =
-    generateBookingId();
-
-
-  const bookingData = {
+  const booking = {
 
     bookingId:
-      temporaryBookingId,
+      generateBookingId(),
 
     customerName:
       name,
@@ -456,6 +399,9 @@ async function submitBooking(event) {
 
     passengers:
       passengers,
+
+    seatNumber:
+      seatNumber,
 
     pickupPoint:
       pickup,
@@ -481,82 +427,49 @@ async function submitBooking(event) {
   };
 
 
-  /* =================================================
-     LOADING
-     ================================================= */
+  /* ================= LOADING ================= */
 
   showBookingMessage(
-    "⏳ आपकी booking सुरक्षित की जा रही है...",
+    "⏳ Booking सुरक्षित की जा रही है...",
     "loading"
   );
 
 
   try {
 
-    /* ===============================================
-       SEND TO SUPABASE EDGE FUNCTION
-       =============================================== */
+    /* ================= SAVE ================= */
 
-    const result =
-      await sendBookingToSupabase(
-        bookingData
-      );
+    await saveBookingToSupabase(
+      booking
+    );
 
 
-    /* ===============================================
-       REAL BOOKING ID
-       =============================================== */
-
-    if (
-      result.booking_id
-    ) {
-
-      bookingData.bookingId =
-        result.booking_id;
-
-    }
-
-
-    /* ===============================================
-       STATUS
-       =============================================== */
-
-    bookingData.status =
-      "Pending";
-
-
-    /* ===============================================
-       LOCAL BACKUP
-       =============================================== */
+    /* ================= LOCAL BACKUP ================= */
 
     localStorage.setItem(
       "htt_last_booking",
       JSON.stringify(
-        bookingData
+        booking
       )
     );
 
 
-    /* ===============================================
-       SUCCESS MESSAGE
-       =============================================== */
+    /* ================= SUCCESS ================= */
 
     showBookingMessage(
 
-      `✅ Booking Successfully प्राप्त हुई!
+      `✅ Booking Successfully Confirmed!
 
-Booking ID: ${bookingData.bookingId}
+Booking ID: ${booking.bookingId}
 
-आपकी booking सुरक्षित रूप से database में save हो गई है।`,
+आपकी booking database में सुरक्षित हो गई है।`,
 
       "success"
 
     );
 
 
-    /* ===============================================
-       RESET FORM
-       =============================================== */
+    /* ================= RESET ================= */
 
     form.reset();
 
@@ -566,28 +479,21 @@ Booking ID: ${bookingData.bookingId}
         "remainingAmount"
       );
 
-
     if (remainingInput) {
-
-      remainingInput.value =
-        "0";
-
+      remainingInput.value = "0";
     }
 
 
-    /* ===============================================
-       SCROLL RESULT
-       =============================================== */
+    /* ================= SCROLL ================= */
 
-    const resultBox =
+    const result =
       document.getElementById(
         "bookingResult"
       );
 
+    if (result) {
 
-    if (resultBox) {
-
-      resultBox.scrollIntoView({
+      result.scrollIntoView({
         behavior: "smooth",
         block: "center"
       });
@@ -597,7 +503,7 @@ Booking ID: ${bookingData.bookingId}
 
     console.log(
       "🚩 Booking saved:",
-      result
+      booking
     );
 
 
@@ -613,19 +519,18 @@ Booking ID: ${bookingData.bookingId}
 
       `❌ Booking save नहीं हो सकी।
 
-${error.message || "कृपया थोड़ी देर बाद फिर कोशिश करें।"}`,
+${error.message}`,
 
       "error"
 
     );
 
   }
-
 }
 
 
 /* =====================================================
-   FIND BOOKING
+   FIND LAST BOOKING
    ===================================================== */
 
 function findBooking() {
@@ -639,7 +544,6 @@ function findBooking() {
     document.getElementById(
       "bookingMessage"
     );
-
 
   if (
     !input ||
@@ -664,261 +568,6 @@ function findBooking() {
   }
 
 
-  /* ===============================================
-     FIRST TRY LOCAL BACKUP
-     =============================================== */
-
   const savedBooking =
     localStorage.getItem(
-      "htt_last_booking"
-    );
-
-
-  if (!savedBooking) {
-
-    message.textContent =
-      "ℹ️ Booking search का database version अगले चरण में activate होगा।";
-
-    return;
-  }
-
-
-  let booking;
-
-
-  try {
-
-    booking =
-      JSON.parse(
-        savedBooking
-      );
-
-  } catch (error) {
-
-    message.textContent =
-      "❌ Booking data पढ़ने में समस्या हुई।";
-
-    return;
-  }
-
-
-  if (
-    booking.bookingId !==
-    searchId
-  ) {
-
-    message.textContent =
-      "❌ इस device पर यह Booking ID नहीं मिली।";
-
-    return;
-  }
-
-
-  /* ===============================================
-     BOOKING FOUND
-     =============================================== */
-
-  message.innerHTML = `
-
-    <div class="booking-found">
-
-      <strong>
-        ✅ Booking मिल गई
-      </strong>
-
-      <br><br>
-
-      <b>Booking ID:</b>
-      ${booking.bookingId}
-
-      <br>
-
-      <b>नाम:</b>
-      ${booking.customerName}
-
-      <br>
-
-      <b>मोबाइल:</b>
-      ${booking.mobile}
-
-      <br>
-
-      <b>यात्रा:</b>
-      ${booking.journey}
-
-      <br>
-
-      <b>यात्रा तारीख:</b>
-      ${booking.journeyDate}
-
-      <br>
-
-      <b>यात्री:</b>
-      ${booking.passengers}
-
-      <br>
-
-      <b>Pickup:</b>
-      ${booking.pickupPoint}
-
-      <br>
-
-      <b>Vehicle:</b>
-      ${booking.vehicle}
-
-      <br>
-
-      <b>कुल राशि:</b>
-      ₹${booking.totalAmount}
-
-      <br>
-
-      <b>Advance:</b>
-      ₹${booking.advanceAmount}
-
-      <br>
-
-      <b>बाकी:</b>
-      ₹${booking.remainingAmount}
-
-      <br><br>
-
-      <b>Status:</b>
-      ${booking.status}
-
-    </div>
-
-  `;
-
-}
-
-
-/* =====================================================
-   CONTACT
-   ===================================================== */
-
-function showContactMessage() {
-
-  alert(
-
-    "🚩 Harshita Tour & Travels\n\n" +
-    "Contact details जल्द ही activate होंगे।"
-
-  );
-
-}
-
-
-/* =====================================================
-   PAGE READY
-   ===================================================== */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  function () {
-
-
-    /* ===============================================
-       CALCULATE REMAINING
-       =============================================== */
-
-    const totalInput =
-      document.getElementById(
-        "totalAmount"
-      );
-
-
-    const advanceInput =
-      document.getElementById(
-        "advanceAmount"
-      );
-
-
-    if (totalInput) {
-
-      totalInput.addEventListener(
-        "input",
-        calculateRemaining
-      );
-
-    }
-
-
-    if (advanceInput) {
-
-      advanceInput.addEventListener(
-        "input",
-        calculateRemaining
-      );
-
-    }
-
-
-    /* ===============================================
-       BOOKING FORM
-       =============================================== */
-
-    const bookingForm =
-      document.getElementById(
-        "bookingForm"
-      );
-
-
-    if (bookingForm) {
-
-      bookingForm.addEventListener(
-        "submit",
-        submitBooking
-      );
-
-    }
-
-
-    /* ===============================================
-       MOBILE MENU
-       =============================================== */
-
-    const navLinks =
-      document.querySelectorAll(
-        "#navMenu a"
-      );
-
-
-    navLinks.forEach(
-      function (link) {
-
-        link.addEventListener(
-          "click",
-          function () {
-
-            const nav =
-              document.getElementById(
-                "navMenu"
-              );
-
-
-            if (nav) {
-
-              nav.classList.remove(
-                "active"
-              );
-
-            }
-
-          }
-        );
-
-      }
-    );
-
-
-    /* ===============================================
-       SYSTEM READY
-       =============================================== */
-
-    console.log(
-      "🚩 Harshita Tour & Travels Premium — Supabase Connected"
-    );
-
-  }
-);
+      "
